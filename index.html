@@ -35,18 +35,14 @@
     <div id="fever-label" hidden>¡FUSIÓN x5!</div>
     <div id="buff-label" hidden></div>
     <div id="quark" hidden></div>
-    <button id="prestige-btn" hidden>☀ ¡COLAPSO!</button>
+    <div id="colapso-badge" hidden>☀ +0 H · MANTÉN EL ÁTOMO</div>
   </div>
 
   <div id="screen-star" hidden>
     <div id="star-stage">
       <canvas id="starcv"></canvas>
       <div id="star-floaters"></div>
-      <button id="nova-btn" hidden>💥 SUPERNOVA</button>
-    </div>
-    <div id="star-ui">
-      <div id="gauge-row">
-        <button id="heat-btn">🔥</button>
+      <div id="star-top">
         <div id="temp-gauge">
           <div id="temp-floor-fill"></div>
           <div id="temp-fill"></div>
@@ -54,12 +50,16 @@
         </div>
         <div id="temp-val">0°</div>
       </div>
-      <div id="reactor"></div>
-      <div id="fuse-row">
-        <button id="fuse-btn">⚛ FUSIONAR</button>
-        <button id="fuse10-btn">×10</button>
+      <div id="nova-badge" hidden>💥 Fe 0/1</div>
+      <div id="fusion-sheet">
+        <div id="sheet-handle"><span></span></div>
+        <div id="fuse-row">
+          <button id="fuse-btn">⚛ FUSIONAR</button>
+          <button id="fuse10-btn">×10</button>
+        </div>
+        <div id="reactor"></div>
+        <div id="chips"></div>
       </div>
-      <div id="chips"></div>
     </div>
   </div>
 

@@ -159,7 +159,7 @@ const ACHIEVEMENTS = [
 function forgedCount(s){ return Object.keys((s||S).elements||{}).length; }
 
 /* ---------- estado ---------- */
-const SAVE_KEY = 'atomoLocoSave_v3';
+const SAVE_KEY = 'atomoLocoSave_v4';
 
 function defaultState(){
   const counts = {};
@@ -172,6 +172,7 @@ function defaultState(){
     temp:0,    // temperatura de la estrella en M°
     tempFloor:0, // piso permanente ("núcleo degenerado")
     dust:0,    // ✦ polvo estelar (supernovas): +75% a todo c/u
+    novas:0,   // supernovas hechas: cada una exige más Fe que la anterior
     quarks:0, fevers:0,
     counts, elements:{}, ach:{}, seen:{}, muted:false, t:Date.now()
   };
@@ -415,6 +416,16 @@ function draw(t){
     pxCircle(bx - b.r*0.35, by - b.r*0.35, b.r*0.3);
   }
 
+  /* carga del colapso: anillo de progreso alrededor del núcleo */
+  if(motorHold.p > 0){
+    ctx.fillStyle = '#ffd93b';
+    pxArc(c.x, c.y, R + 12, motorHold.p, ctx);
+    ctx.globalAlpha = .25 + motorHold.p*.4;
+    ctx.fillStyle = '#ffd93b';
+    pxCircle(c.x, c.y, R + 6, ctx);
+    ctx.globalAlpha = 1;
+  }
+
   /* chispas de neutrino sobre el núcleo */
   if(cnt('neutrino')>0 && Math.random()<0.15){
     const a = Math.random()*Math.PI*2, rr = Math.random()*R;
@@ -511,6 +522,7 @@ cv.addEventListener('pointerdown', ev=>{
   ev.preventDefault();
   const p = stageToLogical(ev);
   doTap(p);
+  motorHold.on = true; motorHold.t0 = now();
 }, {passive:false});
 
 function doTap(p){
@@ -713,24 +725,7 @@ quarkEl.addEventListener('pointerdown', ev=>{
   hideQuark();
 }, {passive:false});
 
-/* ---------- COLAPSO (prestigio) ---------- */
-$('prestige-btn').addEventListener('click', ()=>{
-  const p = pendingH();
-  if(p<1) return;
-  const bonus = colapsoBonus();
-  const particles = cnt('proton') + cnt('neutron');
-  showModal('☀ COLAPSO GRAVITACIONAL',
-    `La nebulosa colapsa bajo su propia gravedad…<br><br>`+
-    `Tus <b>${particles} protones y neutrones</b> se convierten en`+
-    `<br><b style="font-size:14px">${p} átomo${p>1?'s':''} de HIDRÓGENO</b>`+
-    (bonus>0 ? `<br>(${p-bonus} por energía + ${bonus} por tus partículas)` : '')+
-    `<br><br>Ganas <b>+${p*10}% a TODO, para siempre</b>`+
-    `<br>y con H forjas <b>ELEMENTOS</b> en la ⭐ ESTRELLA`,
-    [
-      { label:'¡COLAPSAR!', cb:()=>{ doColapso(p); } },
-      { label:'Aún no', alt:true, cb:()=>{} },
-    ]);
-});
+/* ---------- COLAPSO (prestigio): MANTÉN presionado el átomo ---------- */
 function doColapso(p){
   S.hBase += colapsoBase();   // antes de vaciar contadores
   S.atoms.H = (S.atoms.H||0) + p;
@@ -754,16 +749,40 @@ function doColapso(p){
 }
 function refreshPrestige(){
   const p = pendingH();
-  const btn = $('prestige-btn');
+  const badge = $('colapso-badge');
   if(p>=1){
-    btn.hidden = false; btn.textContent = '☀ COLAPSO +'+p+' H';
+    badge.hidden = false;
+    badge.textContent = '☀ +'+p+' H · MANTÉN EL ÁTOMO';
     if(!S.seen.prestigeReady){
       S.seen.prestigeReady = 1;
-      toast('☀ ¡La nebulosa puede COLAPSAR! Toca el botón dorado ↑');
+      toast('☀ ¡COLAPSO listo! MANTÉN presionado el átomo…');
       sndAch();
     }
   }
-  else btn.hidden = true;
+  else badge.hidden = true;
+}
+
+/* hold sobre el núcleo: carga el colapso (tap normal sigue dando energía) */
+const motorHold = { on:false, t0:0, p:0 };
+cv.addEventListener('pointerup',     ()=>{ motorHold.on = false; motorHold.p = 0; });
+cv.addEventListener('pointerleave',  ()=>{ motorHold.on = false; motorHold.p = 0; });
+cv.addEventListener('pointercancel', ()=>{ motorHold.on = false; motorHold.p = 0; });
+function motorHoldTick(t){
+  if(!motorHold.on || pendingH() < 1){ motorHold.p = 0; return; }
+  const held = t - motorHold.t0;
+  if(held < 450){ motorHold.p = 0; return; }
+  motorHold.p = Math.min(1, (held - 450)/1800);
+  /* partículas absorbidas hacia el núcleo mientras carga */
+  const c = nucleusCenter();
+  if(Math.random() < 0.5){
+    const a = Math.random()*Math.PI*2, rr = LW*0.5;
+    parts.push({ x:c.x+Math.cos(a)*rr, y:c.y+Math.sin(a)*rr*0.8,
+      vx:-Math.cos(a)*70, vy:-Math.sin(a)*70, life:0.8, sz:2, c:'#ffd93b' });
+  }
+  if(motorHold.p >= 1){
+    motorHold.on = false; motorHold.p = 0;
+    doColapso(pendingH());
+  }
 }
 
 /* ---------- pantallas: motor / estrella / tabla ---------- */
@@ -816,22 +835,56 @@ function starTier(){
   return 0;
 }
 
-/* --- calentamiento (mantener presionado) --- */
+/* --- calor: TAP a la estrella lo alimenta; MANTENER carga la supernova ---
+   mismo lenguaje que el motor: tap = acción, hold = evento cósmico */
 let heating = false;
-const heatBtn = $('heat-btn');
-heatBtn.addEventListener('pointerdown', ev=>{ ev.preventDefault(); heating = true; }, {passive:false});
-['pointerup','pointerleave','pointercancel'].forEach(ev=>
-  heatBtn.addEventListener(ev, ()=>{ heating = false; }));
+const starHold = { on:false, t0:0, p:0 };
+function pourChunk(){
+  const budget = Math.min(S.e, Math.max(1500, eps()*1.2));
+  if(budget <= 0) return;
+  S.temp = tempAfterSpend(S.temp, budget);
+  S.e -= budget;
+  blip(200 + Math.min(S.temp,800), .05, 'sawtooth', .07);
+  vibrate(8);
+}
 let heatBlipAcc = 0;
 function heatTick(dt){
   if(!heating || screen!=='star') return;
-  const pour = Math.max(2000, eps()*8) * dt;   // energía vertida este frame
+  if(starHold.p > 0) return;                    // cargando supernova: no vierte
+  const pour = Math.max(2000, eps()*8) * dt;    // chorro continuo al mantener
   const budget = Math.min(pour, S.e);
   if(budget <= 0) return;
   S.temp = tempAfterSpend(S.temp, budget);
   S.e -= budget;
   heatBlipAcc += dt;
   if(heatBlipAcc > 0.18){ heatBlipAcc = 0; blip(180 + S.temp%400, .04, 'sawtooth', .05); }
+}
+/* supernova: exige núcleo de Fe DE ESTA GENERACIÓN, y cada una pide más */
+function novaFeNeeded(){ return Math.pow(S.novas + 1, 2); }   // 1, 4, 9, 16…
+function novaReady(){ return atomsOf('Fe') >= novaFeNeeded(); }
+function novaGain(){
+  const atomsTotal = Object.values(S.atoms).reduce((a,b)=>a+(b||0),0);
+  return 1 + Math.floor(atomsTotal/200);
+}
+
+const starTouchEl = $('starcv');
+starTouchEl.addEventListener('pointerdown', ev=>{
+  ev.preventDefault();
+  heating = true;
+  pourChunk();
+  starHold.on = true; starHold.t0 = now(); starHold.p = 0;
+}, {passive:false});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>
+  starTouchEl.addEventListener(ev, ()=>{ heating = false; starHold.on = false; starHold.p = 0; }));
+function starHoldTick(t){
+  if(!starHold.on || !novaReady()){ starHold.p = 0; return; }
+  const held = t - starHold.t0;
+  if(held < 600){ starHold.p = 0; return; }
+  starHold.p = Math.min(1, (held - 600)/2200);
+  if(starHold.p >= 1){
+    starHold.on = false; starHold.p = 0; heating = false;
+    doSupernova(novaGain());
+  }
 }
 /* --- enfriamiento: mitad cada 10 h, nunca bajo el piso --- */
 function coolTick(dtSeconds){
@@ -897,6 +950,7 @@ function resizeStar(){
   LW2 = 180; LH2 = Math.max(80, Math.round(view2.h/view2.scale));
   starcv.width = LW2; starcv.height = LH2;
   sctx.imageSmoothingEnabled = false;
+  applySheet();
   sstars = [];
   const n = Math.floor(LW2*LH2/260);
   for(let i=0;i<n;i++){
@@ -912,18 +966,31 @@ const TEMP_STOPS = [
   [0,255,79,79],[10,255,122,46],[100,255,217,59],
   [600,255,246,200],[2600,255,255,255],[17000,139,233,253]
 ];
-function tempColor(T){
+function tempColorArr(T){
   let a = TEMP_STOPS[0], b = TEMP_STOPS[TEMP_STOPS.length-1];
   for(let i=0;i<TEMP_STOPS.length-1;i++){
     if(T >= TEMP_STOPS[i][0] && T <= TEMP_STOPS[i+1][0]){ a=TEMP_STOPS[i]; b=TEMP_STOPS[i+1]; break; }
   }
   const f = Math.max(0, Math.min(1, (T-a[0])/((b[0]-a[0])||1)));
-  return 'rgb('+[1,2,3].map(i=>Math.round(a[i]+(b[i]-a[i])*f)).join(',')+')';
+  return [1,2,3].map(i=>Math.round(a[i]+(b[i]-a[i])*f));
+}
+function mixArr(c1, c2, f){ return [0,1,2].map(i=>Math.round(c1[i]+(c2[i]-c1[i])*f)); }
+function rgb(c){ return 'rgb('+c.join(',')+')'; }
+function tempColor(T){ return rgb(tempColorArr(T)); }
+const BG_ARR = [13,5,32], WHITE_ARR = [255,255,255];
+function pxArc(x, y, r, frac, g){
+  const steps = Math.max(16, Math.round(r*6));
+  const n = Math.floor(steps*frac);
+  for(let i=0;i<n;i++){
+    const a = -Math.PI/2 + i*(Math.PI*2/steps);
+    g.fillRect((x+Math.cos(a)*r)|0, (y+Math.sin(a)*r)|0, 2, 2);
+  }
 }
 function masteredRecipes(){ return RECIPES.filter(r=>S.seen['rx_'+r.out]); }
 function starCenter(){ return { x:LW2/2, y:Math.max(34, LH2*0.42) }; }
 function starRadius(){ return Math.min(46, 20 + masteredRecipes().length*2 + Math.min(10, S.temp/50)); }
 
+const novaDebris = [];
 function drawStar(t){
   sctx.fillStyle = '#0d0520';
   sctx.fillRect(0,0,LW2,LH2);
@@ -935,39 +1002,131 @@ function drawStar(t){
   sctx.globalAlpha = 1;
 
   const c = starCenter();
-  const fe = !!S.elements.Fe;               // con corazón de hierro: gigante roja inestable
+  const fe = novaReady();                   // núcleo de Fe listo: gigante roja inestable
   const pulse = Math.sin(t/(fe?160:450));
-  const R = starRadius() * (fe ? 1.18+pulse*0.1 : 1+pulse*0.03);
-  const col = fe ? '#ff4f4f' : tempColor(S.temp);
+  let R = starRadius() * (fe ? 1.18+pulse*0.1 : 1+pulse*0.03);
+  let colArr = fe ? [255,79,79] : tempColorArr(S.temp);
 
-  /* corona + rayos */
-  sctx.globalAlpha = .16; sctx.fillStyle = col;
-  pxCircle(c.x, c.y, R+7+pulse*2, sctx);
-  sctx.globalAlpha = .5;
-  for(let i=0;i<8;i++){
-    const a = t/2600 + i*(Math.PI/4);
-    const rr = R + 10 + ((i%2)?3:7) + pulse*2;
-    sctx.fillRect((c.x+Math.cos(a)*rr)|0, (c.y+Math.sin(a)*rr)|0, 2, 2);
+  /* ===== cinemático de supernova ===== */
+  if(novaFX){
+    const ph = (t - novaFX.t0)/1000;
+    if(ph < 1.1){
+      /* fase 1: colapso — la estrella implosiona temblando */
+      const f = ph/1.1;
+      R = R * (1 - f*0.88);
+      colArr = mixArr(colArr, WHITE_ARR, f);
+      c.x += (Math.random()*2-1) * 3*f;
+      c.y += (Math.random()*2-1) * 3*f;
+      if(Math.random()<0.6){
+        const a = Math.random()*Math.PI*2;
+        novaDebris.push({ x:c.x+Math.cos(a)*LW2*0.4, y:c.y+Math.sin(a)*LH2*0.35,
+          vx:-Math.cos(a)*120, vy:-Math.sin(a)*120, life:.5, c:'#ffffff', in:true });
+      }
+    }else if(ph < 4.6){
+      /* fase 2: BOOM — ondas de choque en bandas + escombros de colores */
+      if(!novaFX.boomed){
+        novaFX.boomed = true;
+        const pal = ELEMENTS.filter(e=>S.elements[e.sym]).map(e=>e.color);
+        for(let i=0;i<170;i++){
+          const a = Math.random()*Math.PI*2, v = 25+Math.random()*95;
+          novaDebris.push({ x:c.x, y:c.y, vx:Math.cos(a)*v, vy:Math.sin(a)*v,
+            life:1+Math.random()*2.4, c: pal[Math.floor(Math.random()*pal.length)]||'#ffd93b' });
+        }
+      }
+      const f = (ph-1.1)/3.5;
+      const fade = Math.max(0, 1-f);
+      /* anillos de choque en bandas (blanco→amarillo→naranja→rojo→morado) */
+      [['#ffffff',1],['#ffd93b',.82],['#ff7a2e',.64],['#ff4f4f',.45],['#b14aed',.3]].forEach(([cc,k])=>{
+        sctx.globalAlpha = fade*.9;
+        sctx.fillStyle = cc;
+        pxRing(c.x, c.y, f*150*k, sctx);
+        pxRing(c.x, c.y, f*150*k+1, sctx);
+      });
+      sctx.globalAlpha = 1;
+      /* protoestrella renace al final */
+      if(ph > 3.4){
+        const fb = (ph-3.4)/1.2;
+        sctx.fillStyle = rgb(mixArr(WHITE_ARR, tempColorArr(S.temp), fb));
+        pxCircle(c.x, c.y, 3+fb*5, sctx);
+      }
+      R = 0;   // la estrella no se dibuja durante la explosión
+    }else{
+      novaFX = null;
+    }
+  }
+
+  /* escombros (vuelan también durante el colapso) */
+  for(let i=novaDebris.length-1;i>=0;i--){
+    const p = novaDebris[i];
+    p.life -= 1/60;
+    if(p.life <= 0){ novaDebris.splice(i,1); continue; }
+    p.x += p.vx/60; p.y += p.vy/60;
+    sctx.globalAlpha = Math.min(1, p.life);
+    sctx.fillStyle = p.c;
+    sctx.fillRect(p.x|0, p.y|0, 2, 2);
   }
   sctx.globalAlpha = 1;
 
-  /* cuerpo */
-  sctx.fillStyle = '#2a0f22'; pxCircle(c.x, c.y+2, R+1, sctx);
-  sctx.fillStyle = col;       pxCircle(c.x, c.y, R, sctx);
-  sctx.globalAlpha = .5; sctx.fillStyle = '#ffffff';
-  pxCircle(c.x - R*0.35, c.y - R*0.35, R*0.25, sctx);
-  sctx.globalAlpha = 1;
+  if(R > 1){
+    /* halo exterior en bandas oscuras (glow radial pixelado) */
+    [[1.5,.82],[1.3,.68],[1.14,.5]].forEach(([k,mix])=>{
+      sctx.fillStyle = rgb(mixArr(colArr, BG_ARR, mix));
+      pxCircle(c.x, c.y, R*k + pulse, sctx);
+    });
 
-  /* capas de cebolla: un anillo por receta dominada (estructura real) */
-  const mast = masteredRecipes();
-  mast.forEach((r,i)=>{
-    const rr = R * (1 - (i+1)/(mast.length+1.5));
-    if(rr < 2) return;
-    sctx.globalAlpha = .55;
-    sctx.fillStyle = ELEM[r.out].color;
-    pxRing(c.x, c.y, rr, sctx);
-  });
-  sctx.globalAlpha = 1;
+    /* destello horizontal (lens flare pixel) */
+    const flare = R*2.6;
+    for(let i=0;i<10;i++){
+      const fx = i/10;
+      sctx.globalAlpha = .5*(1-fx);
+      sctx.fillStyle = rgb(mixArr(colArr, WHITE_ARR, .5));
+      const w = flare*(1-fx*fx);
+      sctx.fillRect((c.x-w)|0, (c.y - (i<2?1:0))|0, (w*2)|0, 1);
+      if(i<2) sctx.fillRect((c.x-w)|0, (c.y+1)|0, (w*2)|0, 1);
+    }
+    sctx.globalAlpha = 1;
+
+    /* cuerpo en bandas concéntricas: oscuro afuera → blanco al centro */
+    [[1,.0],[.8,.22],[.62,.45],[.45,.68],[.27,1]].forEach(([k,mix])=>{
+      sctx.fillStyle = rgb(mixArr(colArr, WHITE_ARR, mix));
+      pxCircle(c.x, c.y, R*k, sctx);
+    });
+    /* cruz de brillo en el núcleo */
+    sctx.fillStyle = '#ffffff';
+    sctx.fillRect((c.x-4)|0, c.y|0, 9, 1);
+    sctx.fillRect(c.x|0, (c.y-4)|0, 1, 9);
+
+    /* rayos giratorios */
+    sctx.globalAlpha = .55; sctx.fillStyle = rgb(colArr);
+    for(let i=0;i<8;i++){
+      const a = t/2600 + i*(Math.PI/4);
+      const rr = R*1.5 + 4 + ((i%2)?2:6) + pulse*2;
+      sctx.fillRect((c.x+Math.cos(a)*rr)|0, (c.y+Math.sin(a)*rr)|0, 2, 2);
+    }
+    sctx.globalAlpha = 1;
+
+    /* capas de cebolla: un anillo por receta dominada (estructura real) */
+    const mast = masteredRecipes();
+    mast.forEach((r,i)=>{
+      const rr = R * (1 - (i+1)/(mast.length+1.5));
+      if(rr < 2) return;
+      sctx.globalAlpha = .4;
+      sctx.fillStyle = ELEM[r.out].color;
+      pxRing(c.x, c.y, rr, sctx);
+    });
+    sctx.globalAlpha = 1;
+
+    /* carga de supernova: anillo de progreso + temblor */
+    if(starHold.p > 0){
+      sctx.fillStyle = '#ffffff';
+      pxArc(c.x, c.y, R*1.6+3, starHold.p, sctx);
+      if(Math.random()<0.7){
+        const a = Math.random()*Math.PI*2;
+        novaDebris.push({ x:c.x+Math.cos(a)*LW2*0.42, y:c.y+Math.sin(a)*LH2*0.36,
+          vx:-Math.cos(a)*100, vy:-Math.sin(a)*100, life:.5, c:'#ff4f4f' });
+      }
+    }
+  }
 
   /* chorro de energía al calentar */
   if(heating && screen==='star' && S.e > 0){
@@ -1150,6 +1309,48 @@ function attemptFuse(times){
 $('fuse-btn').addEventListener('pointerdown', ev=>{ ev.preventDefault(); attemptFuse(1); }, {passive:false});
 $('fuse10-btn').addEventListener('pointerdown', ev=>{ ev.preventDefault(); attemptFuse(10); }, {passive:false});
 
+/* ---------- bottom sheet de fusión (drag para ampliar) ---------- */
+const sheet = $('fusion-sheet');
+const SHEET_PEEK = 108;   // asomado: handle + botón de fusionar
+let sheetOpen = false, sheetDrag = null;
+function sheetFullH(){
+  return Math.min(360, Math.max(SHEET_PEEK+40, Math.round(($('star-stage').clientHeight||400)*0.72)));
+}
+function applySheet(){
+  sheet.style.height = sheetFullH()+'px';
+  sheet.style.transform = 'translateY('+(sheetOpen ? 0 : sheetFullH()-SHEET_PEEK)+'px)';
+}
+function setSheet(open){
+  sheetOpen = open;
+  sheet.classList.add('snap');
+  applySheet();
+  setTimeout(()=>sheet.classList.remove('snap'), 240);
+  blip(open? 460 : 340, .05, 'triangle', .07);
+}
+const sheetHandle = $('sheet-handle');
+sheetHandle.addEventListener('pointerdown', ev=>{
+  ev.preventDefault();
+  sheetDrag = { y0: ev.clientY, base: sheetOpen ? 0 : sheetFullH()-SHEET_PEEK, moved:false };
+  try{ sheetHandle.setPointerCapture(ev.pointerId); }catch(e){}
+}, {passive:false});
+sheetHandle.addEventListener('pointermove', ev=>{
+  if(!sheetDrag) return;
+  const dy = ev.clientY - sheetDrag.y0;
+  if(Math.abs(dy) > 6) sheetDrag.moved = true;
+  const y = Math.max(0, Math.min(sheetFullH()-SHEET_PEEK, sheetDrag.base + dy));
+  sheet.style.transform = 'translateY('+y+'px)';
+});
+['pointerup','pointercancel'].forEach(evn=>sheetHandle.addEventListener(evn, ev=>{
+  if(!sheetDrag) return;
+  const dy = ev.clientY - sheetDrag.y0;
+  const wasTap = !sheetDrag.moved;
+  const base = sheetDrag.base;
+  sheetDrag = null;
+  if(wasTap){ setSheet(!sheetOpen); return; }
+  const y = Math.max(0, Math.min(sheetFullH()-SHEET_PEEK, base + dy));
+  setSheet(y < (sheetFullH()-SHEET_PEEK)/2);
+}));
+
 /* ---------- construcción de la tabla ---------- */
 function buildElements(){
   const grid = $('elements-grid');
@@ -1208,8 +1409,16 @@ function refreshStarScreen(){
   $('fuse-btn').classList.toggle('ready', ok);
   $('fuse-btn').classList.toggle('off', !ok);
   $('fuse10-btn').classList.toggle('off', !ok);
-  /* supernova disponible con corazón de hierro */
-  $('nova-btn').hidden = !S.elements.Fe;
+  /* badge de supernova: progreso del núcleo de hierro de ESTA generación */
+  const nb = $('nova-badge');
+  if(S.elements.Fe){
+    nb.hidden = false;
+    nb.textContent = '💥 Fe '+fmt(atomsOf('Fe'))+'/'+novaFeNeeded()
+      + (novaReady() ? ' · MANTÉN LA ESTRELLA' : '');
+    nb.classList.toggle('ready', novaReady());
+  }else{
+    nb.hidden = true;
+  }
 }
 
 function refreshTabla(){
@@ -1244,7 +1453,7 @@ function refreshTabla(){
     const target = Math.pow(S.hBase+1, 2) * PRESTIGE_UNIT;
     const pct = Math.min(99, Math.floor(S.total/target*100));
     hint.textContent = pend>=1
-      ? pend+' H por reclamar → botón ☀ COLAPSO en el motor'
+      ? pend+' H listos → MANTÉN presionado el átomo del motor'
       : 'Consigue H: llega a '+fmt(target)+' de energía total y COLAPSA — vas al '+pct+'%';
   }else if(anyRecipeReady()){
     hint.textContent = '¡Hay fusión lista en la ⭐ ESTRELLA!';
@@ -1263,29 +1472,16 @@ function refreshElements(){
 }
 
 /* ---------- SUPERNOVA (Acto 3) ---------- */
-$('nova-btn').addEventListener('click', ()=>{
-  if(!S.elements.Fe) return;
-  const atomsTotal = Object.values(S.atoms).reduce((a,b)=>a+(b||0),0);
-  const gain = 1 + Math.floor(atomsTotal/200);
-  const drops = novaDropCount(gain);
-  showModal('💥 SUPERNOVA',
-    `Tu estrella tiene un <b>corazón de HIERRO</b>:<br>la fusión ya no devuelve energía.<br>`+
-    `Solo queda el colapso final… y la EXPLOSIÓN.<br><br>`+
-    `Pierdes: energía, partículas, átomos y calor<br>(el piso térmico conserva un 25%).<br>`+
-    `Conservas: elementos descubiertos y tu H de por vida.<br><br>`+
-    `Ganas <b>✦ ${gain} POLVO ESTELAR</b> (+${gain*75}% a todo)<br>`+
-    `y forjas <b>${drops} elemento${drops>1?'s':''} pesado${drops>1?'s':''}</b> (proceso-r)`,
-    [
-      { label:'¡EXPLOTAR!', cb:()=>doSupernova(gain) },
-      { label:'Aún no', alt:true, cb:()=>{} },
-    ]);
-});
 function novaDropCount(gain){
   const missing = NOVA_POOL.filter(e=>!S.elements[e.sym]).length;
   return Math.min(missing, 2 + gain);   // más átomos al explotar = más botín
 }
+/* la explosión se dispara MANTENIENDO presionada la estrella (sin modal:
+   la carga de 2.8s con FX es la confirmación) */
+let novaFX = null;   // {t0} — línea de tiempo del cinemático
 function doSupernova(gain){
   const drops = novaDropCount(gain);
+  S.novas++;
   /* reset de la generación */
   S.e = 0;
   BUILDINGS.forEach(b=>S.counts[b.id]=0);
@@ -1310,16 +1506,16 @@ function doSupernova(gain){
   }else{
     S.dust += 1;   // pool agotado: polvo extra
   }
-  /* fx */
-  const f = $('nova-flash');
-  f.hidden = false;
-  f.style.animation = 'none'; void f.offsetWidth; f.style.animation = '';
-  setTimeout(()=>{ f.hidden = true; }, 1700);
-  starAnims.push({ k:'nova', t0: now() });
-  const c = nucleusCenter();
-  burst(c.x, c.y, '#ffd93b', 80, 3);
-  burst(c.x, c.y, '#ff4f4f', 60, 2.4);
-  shake(); sndGold(); vibrate([60,80,60,80,140]);
+  /* cinemático estilo Outer Wilds: colapso → flash → onda de choque */
+  novaFX = { t0: now() };
+  setTimeout(()=>{                        // flash blanco al momento del estallido
+    const f = $('nova-flash');
+    f.hidden = false;
+    f.style.animation = 'none'; void f.offsetWidth; f.style.animation = '';
+    setTimeout(()=>{ f.hidden = true; }, 1700);
+    shake(); sndGold(); vibrate([60,80,60,80,200]);
+  }, 1100);
+  [65,98,131,196,262].forEach((fq,i)=>setTimeout(()=>blip(fq,.4,'sawtooth',.16), i*180));
   toast('💥 ¡SUPERNOVA! ✦'+gain+' — todo el oro del universo nació en una explosión así');
   refreshStarScreen(); refreshShop(); refreshHud(); save();
 }
@@ -1456,8 +1652,10 @@ function frame(t){
 
   if(screen === 'motor'){
     maybeQuark(t);
+    motorHoldTick(t);
     draw(t);
   }else if(screen === 'star'){
+    starHoldTick(t);
     drawStar(t);
   }
 

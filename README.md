@@ -55,9 +55,16 @@ lo abre fullscreen (meta apple-mobile-web-app).
 
 Bono por descubrimiento: +25% los primeros 17, +10% del 18 en adelante (multiplicativo). La tabla completa: **×2 extra permanente**.
 
+## El lenguaje táctil (igual en todas las pantallas)
+
+**TAP = acción · MANTENER = evento cósmico.**
+- Motor: tap al átomo = energía · **mantener el átomo** (cuando el badge ☀ avisa) = COLAPSO, con anillo de carga y partículas absorbidas.
+- Estrella: tap a la estrella = inyectar calor · **mantener la estrella** (cuando el badge 💥 está listo) = SUPERNOVA.
+- La fusión vive en un **bottom sheet** arrastrable: asomado muestra el botón FUSIONAR; ampliado, el reactor pictográfico y los chips de recetas.
+
 ## 💥 Supernova (prestigio mayor)
 
-Al fusionar **Fe** la estrella se vuelve una gigante roja inestable y aparece el botón SUPERNOVA: explosión (flash blanco + anillos expansivos), pierdes energía/partículas/átomos/calor (el piso térmico conserva 25% — metalicidad), conservas la colección, y ganas **✦ Polvo Estelar** (`1 + átomos/200`, +75% a todo c/u) más **1 elemento pesado aleatorio** de {Cu, Ag, Au, Pt, Pb, U} — el proceso-r real. Los 6 pesados completos: ×2 extra.
+Exige un **núcleo de hierro de ESTA generación**: la nova N necesita `N² Fe` fusionados (1, 4, 9, 16… — cada explosión es más difícil, completar la tabla es una gesta). Con el núcleo listo, la estrella se vuelve gigante roja inestable; **mantén presionada la estrella** para cargarla (2.8s, anillo de progreso + materia cayendo) y detonarla: **cinemático estilo Outer Wilds** — implosión temblando, flash blanco, ondas de choque en bandas de color y ~170 escombros con los colores de TUS elementos descubiertos, y la protoestrella renaciendo. Pierdes energía/partículas/átomos/calor (piso térmico conserva 25%), conservas la colección, ganas **✦ Polvo Estelar** (+75% c/u) y `2+✦` elementos pesados del pool natural.
 
 ## Hoja de ruta (Los Tres Actos)
 
