@@ -202,24 +202,41 @@ html,body{
   to{transform:scale(1.15) rotate(12deg)}
 }
 
-/* badge de colapso: avisa que el hold está listo (no es botón) */
+/* medidor de colapso: SIEMPRE muestra el progreso hacia el próximo H;
+   dorado y pulsante cuando el hold está listo (no es botón) */
 #colapso-badge{
   position:absolute;
   top:8px;
   left:50%;
   transform:translateX(-50%);
+  min-width:190px;
+  overflow:hidden;
   font-family:var(--px-font);
   font-size:8px;
+  color:var(--white);
+  background:rgba(0,0,0,.55);
+  border:2px solid rgba(255,217,59,.55);
+  border-radius:6px;
+  padding:7px 10px;
+  text-align:center;
+  z-index:5;
+  pointer-events:none;
+}
+#colapso-fill{
+  position:absolute;
+  left:0;top:0;bottom:0;
+  width:0%;
+  background:linear-gradient(90deg,rgba(255,122,46,.45),rgba(255,217,59,.55));
+}
+#colapso-txt{position:relative}
+#colapso-badge.ready{
   color:#3a1d00;
   background:linear-gradient(180deg,var(--yellow),var(--orange));
   border:3px solid #fff;
-  border-radius:6px;
-  padding:7px 10px;
-  z-index:5;
-  pointer-events:none;
   box-shadow:0 0 16px rgba(255,217,59,.8);
   animation:prestige-glow 1.2s ease-in-out infinite alternate;
 }
+#colapso-badge.ready #colapso-fill{display:none}
 @keyframes prestige-glow{
   from{box-shadow:0 0 8px rgba(255,217,59,.5)}
   to{box-shadow:0 0 22px rgba(255,217,59,1)}
@@ -390,6 +407,13 @@ html,body{
   position:absolute;top:-4px;bottom:-4px;width:3px;left:100%;
   background:#fff;
   box-shadow:0 0 6px var(--cyan);
+}
+/* marcas: umbral de cada receta conocida, con el color de su producto */
+#temp-marks span{
+  position:absolute;
+  top:-2px;bottom:-2px;
+  width:2px;
+  opacity:.85;
 }
 #temp-gauge.flash-cold{animation:cold-flash .45s ease-out}
 @keyframes cold-flash{

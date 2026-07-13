@@ -9,7 +9,7 @@
 <title>¡Átomo Loco!</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <div id="game">
@@ -35,7 +35,10 @@
     <div id="fever-label" hidden>¡FUSIÓN x5!</div>
     <div id="buff-label" hidden></div>
     <div id="quark" hidden></div>
-    <div id="colapso-badge" hidden>☀ +0 H · MANTÉN EL ÁTOMO</div>
+    <div id="colapso-badge" hidden>
+      <div id="colapso-fill"></div>
+      <span id="colapso-txt">☀ 0%</span>
+    </div>
   </div>
 
   <div id="screen-star" hidden>
@@ -46,6 +49,7 @@
         <div id="temp-gauge">
           <div id="temp-floor-fill"></div>
           <div id="temp-fill"></div>
+          <div id="temp-marks"></div>
           <div id="temp-tick"></div>
         </div>
         <div id="temp-val">0°</div>
@@ -95,6 +99,6 @@
   </div>
 
 </div>
-<script src="game.js"></script>
+<script src="game.js?v=12"></script>
 </body>
 </html>

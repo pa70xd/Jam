@@ -750,16 +750,30 @@ function doColapso(p){
 function refreshPrestige(){
   const p = pendingH();
   const badge = $('colapso-badge');
-  if(p>=1){
+  const txt = $('colapso-txt');
+  const fill = $('colapso-fill');
+  if(p >= 1){
+    /* listo: dorado pulsante, el hold es la acción */
     badge.hidden = false;
-    badge.textContent = '☀ +'+p+' H · MANTÉN EL ÁTOMO';
+    badge.classList.add('ready');
+    txt.textContent = '☀ +'+p+' H · MANTÉN EL ÁTOMO';
     if(!S.seen.prestigeReady){
       S.seen.prestigeReady = 1;
       toast('☀ ¡COLAPSO listo! MANTÉN presionado el átomo…');
       sndAch();
     }
+    return;
   }
-  else badge.hidden = true;
+  /* aún no: medidor de progreso hacia el próximo H, siempre visible
+     desde temprano — la meta nunca es un misterio */
+  const target = Math.pow(S.hBase+1, 2) * PRESTIGE_UNIT;
+  if(S.total < 10000 && S.hEver === 0){ badge.hidden = true; return; }
+  badge.hidden = false;
+  badge.classList.remove('ready');
+  const pct = Math.min(99.9, S.total/target*100);
+  fill.style.width = pct.toFixed(1)+'%';
+  /* el premio previsualizado crece si compras protones/neutrones */
+  txt.textContent = '☀ COLAPSO '+Math.floor(pct)+'% → +'+(1+colapsoBonus())+' H';
 }
 
 /* hold sobre el núcleo: carga el colapso (tap normal sigue dando energía) */
@@ -1384,14 +1398,28 @@ function anyRecipeReady(){ return RECIPES.some(r=>recipeVisible(r) && canRun(r)=
 function refreshStarScreen(){
   rebuildChips();
   const r = selRecipe;
-  /* gauge: el tick es la meta térmica de la receta elegida */
-  $('temp-val').textContent = fmt(Math.floor(S.temp))+'°';
+  /* gauge: el tick es la meta térmica de la receta elegida;
+     ▲ calentando / ▼ enfriándose hacia el piso */
+  const cooling = !heating && S.temp > S.tempFloor + 0.5;
+  $('temp-val').textContent = fmt(Math.floor(S.temp))+'°'+(heating ? ' ▲' : (cooling ? ' ▼' : ''));
   const scale = Math.max(r.temp*1.15, S.temp*1.05, 12);
   $('temp-fill').style.width = Math.min(100, S.temp/scale*100)+'%';
   $('temp-floor-fill').style.width = Math.min(100, S.tempFloor/scale*100)+'%';
   const tick = $('temp-tick');
   tick.style.left = Math.min(98.5, r.temp/scale*100)+'%';
   tick.style.background = ELEM[r.out].color;
+  /* marcas: TODOS los umbrales de recetas conocidas dentro de la escala */
+  const marks = $('temp-marks');
+  marks.innerHTML = '';
+  RECIPES.forEach(rr=>{
+    if(!recipeVisible(rr) || rr === r) return;
+    const pos = rr.temp/scale*100;
+    if(pos > 100) return;
+    const m = document.createElement('span');
+    m.style.left = pos+'%';
+    m.style.background = ELEM[rr.out].color;
+    marks.appendChild(m);
+  });
   /* chips */
   chipNodes.forEach(({r:cr,d})=>{
     const st = canRun(cr);
