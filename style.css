@@ -415,6 +415,32 @@ html,body{
   width:2px;
   opacity:.85;
 }
+/* equilibrio térmico: hasta dónde llega el calor pasivo del H (cian) */
+#temp-eq{
+  position:absolute;
+  bottom:-5px;
+  width:3px;height:5px;
+  background:var(--cyan);
+  box-shadow:0 0 5px var(--cyan);
+  animation:eq-blink 1.1s ease-in-out infinite alternate;
+}
+@keyframes eq-blink{from{opacity:.5}to{opacity:1}}
+
+/* chip: tasa de calor pasivo generado por el hidrógeno */
+#hgen-chip{
+  position:absolute;
+  top:30px;left:10px;
+  font-family:var(--px-font);
+  font-size:7px;
+  color:var(--cyan);
+  background:rgba(0,0,0,.5);
+  border:2px solid rgba(41,243,255,.45);
+  border-radius:5px;
+  padding:4px 6px;
+  z-index:4;
+  pointer-events:none;
+  text-shadow:1px 1px 0 rgba(0,0,0,.8);
+}
 #temp-gauge.flash-cold{animation:cold-flash .45s ease-out}
 @keyframes cold-flash{
   0%{box-shadow:0 0 0 4px var(--cyan)}

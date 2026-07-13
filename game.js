@@ -958,6 +958,9 @@ function starHoldTick(t){
     doSupernova(novaGain());
   }
 }
+/* --- calor pasivo: el H es combustible (escala raíz) --- */
+function hGenRate(){ return Math.sqrt(atomsOf('H')) * 1.5e-4; }   // M°/s
+function hEquilibrium(){ return S.tempFloor + hGenRate() * COOL_HALFLIFE_S / Math.LN2; }
 /* --- enfriamiento: mitad cada 10 h, nunca bajo el piso --- */
 function coolTick(dtSeconds){
   if(S.temp > S.tempFloor){
@@ -1210,16 +1213,25 @@ function drawStar(t){
     }
   }
 
-  /* chorro de energía al calentar */
+  /* chorro de energía al calentar (naranja, rápido, desde abajo) */
   if(heating && screen==='star' && S.e > 0){
-    for(let i=0;i<2;i++) heatStream.push({ x:Math.random()*LW2, y:LH2+2 });
+    for(let i=0;i<2;i++) heatStream.push({ x:Math.random()*LW2, y:LH2+2, spd:0.09 });
+  }
+  /* combustible pasivo: átomos de H (cian) cayendo lento desde alrededor */
+  if(!novaFX && atomsOf('H') > 0 && Math.random() < Math.min(0.45, Math.sqrt(atomsOf('H'))*0.03)){
+    const a = Math.random()*Math.PI*2;
+    heatStream.push({
+      x: c.x + Math.cos(a)*LW2*0.48,
+      y: c.y + Math.sin(a)*LH2*0.42,
+      spd: 0.018, c: '#29f3ff'
+    });
   }
   for(let i=heatStream.length-1;i>=0;i--){
     const p = heatStream[i];
     const dx = c.x-p.x, dy = c.y-p.y;
-    p.x += dx*0.09; p.y += dy*0.09;
+    p.x += dx*p.spd; p.y += dy*p.spd;
     if(Math.abs(dx)<4 && Math.abs(dy)<4){ heatStream.splice(i,1); continue; }
-    sctx.fillStyle = Math.random()<.5 ? '#ffd93b' : '#ff7a2e';
+    sctx.fillStyle = p.c || (Math.random()<.5 ? '#ffd93b' : '#ff7a2e');
     sctx.fillRect(p.x|0, p.y|0, 2, 2);
   }
 
@@ -1468,17 +1480,36 @@ function refreshStarScreen(){
   const r = selRecipe;
   /* gauge: el tick es la meta térmica de la receta elegida;
      ▲ vertiendo energía · ♨ el H mantiene el calor · ▼ enfriándose */
-  const hGen = Math.sqrt(atomsOf('H')) * 1.5e-4;
+  const hGen = hGenRate();
   const coolRate = S.temp > S.tempFloor ? (S.temp - S.tempFloor)*Math.LN2/COOL_HALFLIFE_S : 0;
   const net = hGen - coolRate;
   const arrow = heating ? ' ▲' : (net > 1e-6 ? ' ♨' : (net < -1e-6 ? ' ▼' : ''));
   $('temp-val').textContent = fmt(Math.floor(S.temp))+'°'+arrow;
+  /* chip: tasa de calor pasivo del H, en grados por hora */
+  const chip = $('hgen-chip');
+  if(hGen > 0){
+    chip.hidden = false;
+    const perHour = hGen * 3600;
+    chip.textContent = '♨ '+fmt(atomsOf('H'))+' H → +'
+      + (perHour >= 10 ? Math.round(perHour) : perHour.toFixed(1)) + '°/h';
+  }else{
+    chip.hidden = true;
+  }
   const scale = Math.max(r.temp*1.15, S.temp*1.05, 12);
   $('temp-fill').style.width = Math.min(100, S.temp/scale*100)+'%';
   $('temp-floor-fill').style.width = Math.min(100, S.tempFloor/scale*100)+'%';
   const tick = $('temp-tick');
   tick.style.left = Math.min(98.5, r.temp/scale*100)+'%';
   tick.style.background = ELEM[r.out].color;
+  /* marcador de equilibrio: hasta dónde llegará el calor pasivo solo */
+  const eq = $('temp-eq');
+  const eqT = hEquilibrium();
+  if(hGen > 0 && eqT > S.temp*1.02 && eqT/scale <= 1){
+    eq.hidden = false;
+    eq.style.left = (eqT/scale*100)+'%';
+  }else{
+    eq.hidden = true;
+  }
   /* marcas: TODOS los umbrales de recetas conocidas dentro de la escala */
   const marks = $('temp-marks');
   marks.innerHTML = '';
@@ -1728,7 +1759,7 @@ function frame(t){
 
   /* la estrella: el HIDRÓGENO es combustible — genera calor pasivo (√H),
      el enfriamiento tira hacia el piso, y el tap/hold vierte energía */
-  const hGen = Math.sqrt(atomsOf('H')) * 1.5e-4;
+  const hGen = hGenRate();
   if(hGen > 0) S.temp += hGen * dt;
   coolTick(dt);
   heatTick(dt);
