@@ -237,6 +237,20 @@ html,body{
   animation:prestige-glow 1.2s ease-in-out infinite alternate;
 }
 #colapso-badge.ready #colapso-fill{display:none}
+
+/* contador de colapso: H asegurados si sueltas ahora */
+#colapso-count{
+  position:absolute;
+  top:46px;left:50%;
+  transform:translateX(-50%);
+  font-family:var(--px-font);
+  font-size:15px;
+  color:var(--cyan);
+  text-shadow:0 0 10px var(--cyan), 2px 2px 0 rgba(0,0,0,.75);
+  z-index:5;
+  pointer-events:none;
+  animation:fever-pulse .3s ease-in-out infinite alternate;
+}
 @keyframes prestige-glow{
   from{box-shadow:0 0 8px rgba(255,217,59,.5)}
   to{box-shadow:0 0 22px rgba(255,217,59,1)}
@@ -398,6 +412,8 @@ html,body{
   border-radius:3px;
 }
 #temp-floor-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:rgba(255,122,46,.28)}
+/* zona sostenida por el hidrógeno (cian translúcido) */
+#temp-hfloor-fill{position:absolute;top:0;bottom:0;width:0%;background:rgba(41,243,255,.22)}
 #temp-fill{
   position:absolute;left:0;top:0;bottom:0;width:0%;
   background:linear-gradient(90deg,#a3151f,var(--orange),var(--yellow));
@@ -517,7 +533,7 @@ html,body{
 }
 .slot-group{display:flex;flex-direction:column;align-items:center;gap:3px}
 .slot-balls{display:flex;gap:2px}
-.slot-count{font-size:7px;color:var(--cyan)}
+.slot-count{font-size:9px;color:var(--cyan)}
 .slot-group.miss .slot-count{color:#ff4f4f}
 .slot-group.flash-miss{animation:miss-shake .35s}
 @keyframes miss-shake{
@@ -532,11 +548,11 @@ html,body{
 .ball .bsym{
   position:absolute;
   font-family:var(--px-font);
-  font-size:6px;
+  font-size:8px;
   color:#160a2e;
   text-shadow:0 0 2px rgba(255,255,255,.8);
 }
-.ball.big .bsym{font-size:8px}
+.ball.big .bsym{font-size:10px}
 
 #fuse-row{display:flex;gap:8px}
 #fuse-btn{
@@ -576,7 +592,7 @@ html,body{
 #chips::-webkit-scrollbar{display:none}
 .chip{
   flex:none;
-  width:48px;height:58px;
+  width:58px;height:68px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -588,7 +604,7 @@ html,body{
   border-radius:8px;
   color:var(--white);
 }
-.chip .chip-t{font-size:6px;color:var(--orange)}
+.chip .chip-t{font-size:7px;color:var(--orange)}
 .chip.sel{border-color:var(--yellow);box-shadow:0 0 10px rgba(255,217,59,.4)}
 .chip.cold{border-color:#2b6a8a}
 .chip.cold .chip-t{color:var(--cyan)}
