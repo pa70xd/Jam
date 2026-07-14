@@ -193,6 +193,8 @@ function load(){
     S.counts = Object.assign(defaultState().counts, d.counts||{});
     S.elements = d.elements || {};
     S.atoms = d.atoms || {};
+    /* migración: quien ya colapsó alguna vez ya tiene estrella e intro vistas */
+    if(S.hEver > 0){ S.seen.starBorn = 1; S.seen.introScene = 1; }
     return true;
   }catch(e){ return false; }
 }
@@ -565,6 +567,7 @@ function popEnergy(){
   popT = setTimeout(()=>el.classList.remove('pop'), 90);
 }
 function refreshHud(){
+  $('tab-star').hidden = !S.seen.starBorn;
   $('energy').textContent = '⚡'+fmt(S.e);
   $('eps').textContent = fmt(eps())+' /s'
     + (tempMult() > 1.005 ? ' ♨+'+Math.round((tempMult()-1)*100)+'%' : '')
@@ -764,6 +767,12 @@ function doColapso(p){
     setTimeout(()=>toast('⭐ Con tu H forja ELEMENTOS — tab ESTRELLA abajo'), 2500);
   }
   refreshShop(); refreshHud(); save();
+  /* el PRIMER colapso hace nacer la estrella: escena + tab desbloqueado */
+  if(!S.seen.starBorn){
+    S.seen.starBorn = 1;
+    save();
+    playScene(starBirthScene(), ()=>{ refreshHud(); setScreen('star'); });
+  }
 }
 function refreshPrestige(){
   const p = pendingH();
@@ -885,6 +894,7 @@ function doColapsoPartial(k){
 /* ---------- pantallas: motor / estrella / tabla ---------- */
 let screen = 'motor';
 function setScreen(m){
+  if(m === 'star' && !S.seen.starBorn) return;   // la estrella aún no nace
   screen = m;
   $('stage').hidden = m !== 'motor';
   $('shop').hidden = m !== 'motor';
@@ -917,6 +927,9 @@ function discover(sym){
   const d = elNodes[ELEMENTS.indexOf(el)];
   if(d){ d.classList.remove('just-forged'); void d.offsetWidth; d.classList.add('just-forged'); }
   blob = [];   // el núcleo del motor cambia de paleta
+  /* cartas de era: los hitos de la nucleosíntesis se narran en escena */
+  if(sym === 'C' && !S.seen.card_C){ S.seen.card_C = 1; playScene(cardCarbon()); }
+  if(sym === 'Fe' && !S.seen.card_Fe){ S.seen.card_Fe = 1; playScene(cardIron()); }
   save();
 }
 function lastForgedColor(){
@@ -1652,7 +1665,7 @@ function refreshTabla(){
 function refreshElements(){
   if(screen === 'star') refreshStarScreen();
   else if(screen === 'tabla') refreshTabla();
-  $('tab-star').querySelector('.nav-dot').hidden = !anyRecipeReady();
+  $('tab-star').querySelector('.nav-dot').hidden = !(S.seen.starBorn && anyRecipeReady());
   $('tab-tabla').querySelector('.nav-dot').hidden = true;
 }
 
@@ -1801,6 +1814,178 @@ function offlineGains(){
     [{ label:'¡GENIAL!', cb:()=>{} }]);
 }
 
+/* ---------- CINEMÁTICAS (la narrativa se cuenta con escenas) ---------- */
+const cineEl = $('cine'), cinecv = $('cinecv'), cctx = cinecv.getContext('2d');
+const cine = { on:false, phases:null, t0:0, idx:-1, cb:null };
+let CW = 180, CH = 320;
+function resizeCine(){
+  const w = cineEl.clientWidth || window.innerWidth;
+  const h = cineEl.clientHeight || window.innerHeight;
+  CW = 180; CH = Math.max(120, Math.round(h / (w/180)));
+  cinecv.width = CW; cinecv.height = CH;
+  cctx.imageSmoothingEnabled = false;
+}
+window.addEventListener('resize', ()=>{ if(cine.on) resizeCine(); });
+
+function playScene(phases, cb){
+  cine.on = true; cine.phases = phases; cine.t0 = now(); cine.idx = -1;
+  cine.cb = cb || null;
+  cineEl.hidden = false;
+  resizeCine();
+}
+function endScene(){
+  if(!cine.on) return;
+  cine.on = false;
+  cineEl.hidden = true;
+  $('cine-card').hidden = true;
+  const cb = cine.cb; cine.cb = null;
+  if(cb) cb();
+}
+cineEl.addEventListener('pointerdown', ev=>{ ev.preventDefault(); endScene(); }, {passive:false});
+
+function drawCine(t){
+  const el = (t - cine.t0)/1000;
+  let acc = 0, idx = -1, local = 0;
+  for(let i=0;i<cine.phases.length;i++){
+    if(el < acc + cine.phases[i].dur){ idx = i; local = (el - acc)/cine.phases[i].dur; break; }
+    acc += cine.phases[i].dur;
+  }
+  if(idx === -1){ endScene(); return; }
+  const ph = cine.phases[idx];
+  if(idx !== cine.idx){
+    cine.idx = idx;
+    if(ph.init) ph.init();
+    const card = $('cine-card');
+    if(ph.card){ card.hidden = false; card.textContent = ph.card; }
+    else card.hidden = true;
+  }
+  ph.draw(local, t);
+}
+
+/* silueta de tabla periódica estilizada (para la carta-objetivo) */
+function tableMask(r, c){
+  if(r === 0) return c === 0 || c === 17;
+  if(r <= 2)  return c < 2 || c >= 12;
+  return true;
+}
+function drawMiniTable(f, litHe){
+  cctx.fillStyle = '#0d0520'; cctx.fillRect(0,0,CW,CH);
+  const cols = 18, rows = 7, cell = 9;
+  const gx = Math.floor((CW - cols*cell)/2), gy = Math.floor(CH*0.34);
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    if(!tableMask(r,c)) continue;
+    cctx.fillStyle = 'rgba(94,63,158,.35)';
+    if(Math.random() < 0.015) cctx.fillStyle = 'rgba(255,255,255,.3)';   // shimmer
+    cctx.fillRect(gx+c*cell, gy+r*cell, cell-1, cell-1);
+  }
+  if(f > 0.15){ cctx.fillStyle = '#29f3ff'; cctx.fillRect(gx, gy, cell-1, cell-1); }               // H
+  if(litHe && f > 0.5){ cctx.fillStyle = '#ffd93b'; cctx.fillRect(gx+17*cell, gy, cell-1, cell-1); } // He
+}
+
+/* ESCENA 1: BIG BANG (primer arranque) */
+function introScene(){
+  const soup = [];
+  return [
+    { dur:1.6, draw:(f,t)=>{                       // la singularidad
+        cctx.fillStyle = '#000'; cctx.fillRect(0,0,CW,CH);
+        cctx.fillStyle = '#fff';
+        pxCircle(CW/2, CH*0.45, 1.5*(1+Math.sin(t/120)*0.6) + f*2, cctx);
+      }},
+    { dur:0.5, draw:(f)=>{                         // ¡BANG!
+        cctx.fillStyle = '#000'; cctx.fillRect(0,0,CW,CH);
+        cctx.fillStyle = '#fff';
+        pxCircle(CW/2, CH*0.45, f*CW*0.9, cctx);
+      }},
+    { dur:3.0, card:'t = 1 SEGUNDO · SOPA DE QUARKS',
+      init:()=>{ soup.length = 0;
+        for(let i=0;i<120;i++) soup.push({ x:Math.random()*CW, y:Math.random()*CH,
+          vx:(Math.random()*2-1)*60, vy:(Math.random()*2-1)*60,
+          c:['#ffffff','#ffd93b','#ff7a2e','#ff2e88'][i%4] }); },
+      draw:(f)=>{
+        cctx.fillStyle = '#14060a'; cctx.fillRect(0,0,CW,CH);
+        const slow = 1 - f*0.7;
+        soup.forEach(p=>{
+          p.x = (p.x + p.vx*slow/60 + CW) % CW;
+          p.y = (p.y + p.vy*slow/60 + CH) % CH;
+          cctx.fillStyle = p.c; cctx.fillRect(p.x|0, p.y|0, 2, 2);
+        });
+      }},
+    { dur:3.2, card:'t = 3 MINUTOS · NUCLEOSÍNTESIS PRIMORDIAL',
+      draw:(f)=>{
+        cctx.fillStyle = '#0d0520'; cctx.fillRect(0,0,CW,CH);
+        soup.forEach((p,i)=>{                       // se enfrían: 75% H, 25% He
+          p.x += p.vx*0.08/60; p.y += p.vy*0.08/60;
+          cctx.fillStyle = (i%4 !== 0) ? '#ff6fb1' : '#ffd93b';
+          pxCircle(p.x, p.y, 1.5 + f, cctx);
+        });
+      }},
+    { dur:3.2, card:'75% HIDRÓGENO · 25% HELIO', draw:(f)=>drawMiniTable(f, true) },
+    { dur:3.2, card:'FORJA LOS 118 ELEMENTOS DEL UNIVERSO', draw:()=>drawMiniTable(1, true) },
+  ];
+}
+
+/* ESCENA 2: NACE LA PRIMERA ESTRELLA (primer colapso) */
+function starBirthScene(){
+  const cloud = [];
+  function drawCloud(pull){
+    cloud.forEach(p=>{
+      p.a += p.sp/60; p.r = Math.max(2, p.r - pull);
+      cctx.fillStyle = p.c;
+      cctx.fillRect((CW/2 + Math.cos(p.a)*p.r)|0, (CH*0.42 + Math.sin(p.a)*p.r*0.8)|0, 2, 2);
+    });
+  }
+  return [
+    { dur:2.4, card:'250 MILLONES DE AÑOS DESPUÉS…',
+      init:()=>{ cloud.length = 0;
+        for(let i=0;i<140;i++) cloud.push({ a:Math.random()*Math.PI*2, r:20+Math.random()*70,
+          sp:0.15+Math.random()*0.35, c: i%4 ? '#ff6fb1' : '#ffd93b' }); },
+      draw:()=>{ cctx.fillStyle='#0d0520'; cctx.fillRect(0,0,CW,CH); drawCloud(0.06); }},
+    { dur:2.4, card:'LA GRAVEDAD COLAPSA LA NUBE DE H y He',
+      draw:(f)=>{ cctx.fillStyle='#0d0520'; cctx.fillRect(0,0,CW,CH); drawCloud(0.1 + f*0.9); }},
+    { dur:0.5, draw:(f)=>{                          // ignición
+        cctx.fillStyle='#0d0520'; cctx.fillRect(0,0,CW,CH);
+        cctx.fillStyle='#fff'; pxCircle(CW/2, CH*0.42, f*CW*0.7, cctx);
+      }},
+    { dur:3.4, card:'⭐ NACE TU PRIMERA ESTRELLA',
+      draw:(f,t)=>{
+        cctx.fillStyle='#0d0520'; cctx.fillRect(0,0,CW,CH);
+        const R = 8 + f*22, col = [255,217,59];
+        [[1.4,.7],[1.15,.45]].forEach(([k,mix])=>{
+          cctx.fillStyle = rgb(mixArr(col, BG_ARR, mix)); pxCircle(CW/2, CH*0.42, R*k, cctx); });
+        [[1,0],[.7,.4],[.4,.9]].forEach(([k,mix])=>{
+          cctx.fillStyle = rgb(mixArr(col, WHITE_ARR, mix)); pxCircle(CW/2, CH*0.42, R*k, cctx); });
+        cctx.fillStyle = '#ffd93b';
+        for(let i=0;i<8;i++){
+          const a = t/2000 + i*Math.PI/4;
+          cctx.fillRect((CW/2+Math.cos(a)*R*1.6)|0, (CH*0.42+Math.sin(a)*R*1.6)|0, 2, 2);
+        }
+      }},
+  ];
+}
+
+/* cartas de era (momentos breves) */
+function cardCarbon(){
+  return [{ dur:3.0, card:'LA ESTRELLA FABRICA CARBONO · LA SEMILLA DE LA VIDA',
+    draw:(f)=>{
+      cctx.fillStyle = '#0d0520'; cctx.fillRect(0,0,CW,CH);
+      const cx = CW/2, cy = CH*0.45, d = 40*(1 - Math.min(1, f*1.6));
+      [[0,-1],[-0.87,0.5],[0.87,0.5]].forEach(([dx,dy])=>{     // triple-alfa
+        cctx.fillStyle = '#ffd93b'; pxCircle(cx+dx*d, cy+dy*d, 5, cctx);
+      });
+      if(f > 0.6){ cctx.fillStyle = '#c9c9dd'; pxCircle(cx, cy, 7+(f-0.6)*8, cctx); }
+    }}];
+}
+function cardIron(){
+  return [{ dur:3.0, card:'EL HIERRO NO PAGA · EL CORAZÓN DE LA ESTRELLA SE APAGA',
+    draw:(f,t)=>{
+      cctx.fillStyle = '#14060a'; cctx.fillRect(0,0,CW,CH);
+      const pu = Math.sin(t/140), R = 30 + pu*3;
+      cctx.fillStyle = '#ff4f4f'; pxCircle(CW/2, CH*0.45, R, cctx);
+      cctx.fillStyle = '#7a2d2d'; pxCircle(CW/2, CH*0.45, R*0.55, cctx);
+      cctx.fillStyle = '#3a1d1d'; pxCircle(CW/2, CH*0.45, R*0.3, cctx);
+    }}];
+}
+
 /* ---------- loop principal ---------- */
 let lastT = now(), accInc = 0, accSave = 0, accUi = 0;
 function frame(t){
@@ -1838,7 +2023,9 @@ function frame(t){
     bl.textContent = '🔥 FRENESÍ x7 · '+Math.ceil((buffs.frenzyUntil-t)/1000)+'s';
   } else bl.hidden = true;
 
-  if(screen === 'motor'){
+  if(cine.on){
+    drawCine(t);
+  }else if(screen === 'motor'){
     maybeQuark(t);
     motorHoldTick(t);
     draw(t);
@@ -1875,6 +2062,12 @@ function main(){
   $('mute').classList.toggle('off', S.muted);
   if(had) offlineGains();
   refreshHud(); refreshShop(); refreshPrestige();
+  /* primer arranque: la historia empieza con el BIG BANG */
+  if(!S.seen.introScene){
+    S.seen.introScene = 1;
+    save();
+    playScene(introScene());
+  }
   requestAnimationFrame(frame);
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) save(); });

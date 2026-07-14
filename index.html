@@ -9,7 +9,7 @@
 <title>¡Átomo Loco!</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <div id="game">
@@ -86,11 +86,17 @@
 
   <nav id="nav">
     <button class="nav-tab active" id="tab-motor">⚛ MOTOR</button>
-    <button class="nav-tab" id="tab-star">⭐ ESTRELLA<span class="nav-dot" hidden></span></button>
+    <button class="nav-tab" id="tab-star" hidden>⭐ ESTRELLA<span class="nav-dot" hidden></span></button>
     <button class="nav-tab" id="tab-tabla">🧪 TABLA<span class="nav-dot" hidden></span></button>
   </nav>
 
   <div id="nova-flash" hidden></div>
+
+  <div id="cine" hidden>
+    <canvas id="cinecv"></canvas>
+    <div id="cine-card" hidden></div>
+    <div id="cine-skip">toca para continuar ▸</div>
+  </div>
 
   <div id="toast" hidden></div>
 
@@ -103,6 +109,6 @@
   </div>
 
 </div>
-<script src="game.js?v=16"></script>
+<script src="game.js?v=17"></script>
 </body>
 </html>

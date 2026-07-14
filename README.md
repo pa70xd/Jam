@@ -55,6 +55,13 @@ lo abre fullscreen (meta apple-mobile-web-app).
 
 Bono por descubrimiento: +25% los primeros 17, +10% del 18 en adelante (multiplicativo). La tabla completa: **×2 extra permanente**.
 
+## La narrativa se cuenta con ESCENAS
+
+El objetivo del juego se comunica con cinemáticas pixel art (tap para saltar), siguiendo la cronología real de la nucleosíntesis:
+- **BIG BANG** (primer arranque): singularidad → flash → sopa de quarks → los quarks se enfrían en H y He primordiales → la tabla periódica apagada con H/He encendiéndose → "FORJA LOS 118 ELEMENTOS DEL UNIVERSO".
+- **⭐ La estrella NO existe al inicio**: el tab está oculto. Tu primer colapso dispara la escena "250 millones de años después… la gravedad colapsa la nube de H y He → NACE TU PRIMERA ESTRELLA", desbloquea el tab y te lleva ahí.
+- **Cartas de era**: el primer Carbono ("la semilla de la vida") y el primer Hierro ("el corazón de la estrella se apaga") tienen su momento narrativo. La supernova ya tiene su cinemático.
+
 ## El lenguaje táctil (igual en todas las pantallas)
 
 **TAP = acción · MANTENER = evento cósmico.**
