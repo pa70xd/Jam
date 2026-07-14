@@ -9,7 +9,7 @@
 <title>¡Átomo Loco!</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <div id="game">
@@ -24,6 +24,7 @@
       <div id="eps">0 /s</div>
     </div>
     <div id="hud-right">
+      <button id="ach-btn" aria-label="logros">🏆<span id="ach-dot" hidden></span></button>
       <button id="mute" aria-label="sonido">♪</button>
     </div>
   </header>
@@ -91,6 +92,15 @@
     <button class="nav-tab" id="tab-tabla">🧪 TABLA<span class="nav-dot" hidden></span></button>
   </nav>
 
+  <div id="ach-panel" hidden>
+    <div id="ach-head">
+      <span id="ach-title">🏆 LOGROS</span>
+      <span id="ach-count">0/0</span>
+      <button id="ach-close" aria-label="cerrar">✕</button>
+    </div>
+    <div id="ach-list"></div>
+  </div>
+
   <div id="nova-flash" hidden></div>
 
   <div id="toast" hidden></div>
@@ -104,6 +114,6 @@
   </div>
 
 </div>
-<script src="game.js?v=15"></script>
+<script src="game.js?v=16"></script>
 </body>
 </html>

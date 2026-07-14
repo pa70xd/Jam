@@ -1755,15 +1755,53 @@ function nextToast(){
   setTimeout(nextToast, 2300);
 }
 function checkAchievements(){
+  let nuevo = false;
   for(const a of ACHIEVEMENTS){
     if(S.ach[a.id]) continue;
     if(a.test(S)){
       S.ach[a.id] = 1;
+      nuevo = true;
       toast('🏆 '+a.name+' — '+a.msg);
       sndAch();
     }
   }
+  if(nuevo) refreshAchDot();
 }
+
+/* ---------- pantalla de logros ---------- */
+function achCount(){ let n = 0; ACHIEVEMENTS.forEach(a=>{ if(S.ach[a.id]) n++; }); return n; }
+function refreshAchDot(){ $('ach-dot').hidden = achCount() <= (S.seen.achSeen||0); }
+function refreshAchPanel(){
+  const list = $('ach-list');
+  list.innerHTML = '';
+  ACHIEVEMENTS.forEach(a=>{
+    const has = !!S.ach[a.id];
+    const d = document.createElement('div');
+    d.className = 'ach-row' + (has ? ' got' : '');
+    const ico = document.createElement('span');
+    ico.className = 'ach-ico'; ico.textContent = has ? '🏆' : '🔒';
+    const tx = document.createElement('span');
+    tx.className = 'ach-txt';
+    const nm = document.createElement('b'); nm.textContent = a.name;
+    const ms = document.createElement('small'); ms.textContent = a.msg;
+    tx.append(nm, ms);
+    d.append(ico, tx);
+    list.appendChild(d);
+  });
+  $('ach-count').textContent = achCount()+'/'+ACHIEVEMENTS.length;
+}
+$('ach-btn').addEventListener('click', ()=>{
+  refreshAchPanel();
+  $('ach-panel').hidden = false;
+  S.seen.achSeen = achCount();
+  refreshAchDot();
+  blip(620,.06,'triangle',.1);
+  save();
+});
+$('ach-close').addEventListener('click', ()=>{
+  $('ach-panel').hidden = true;
+  blip(392,.05,'triangle',.08);
+});
 
 /* ---------- modal ---------- */
 function showModal(title, html, buttons){
@@ -1888,7 +1926,7 @@ function main(){
   scheduleQuark();
   $('mute').classList.toggle('off', S.muted);
   if(had) offlineGains();
-  refreshHud(); refreshShop(); refreshPrestige();
+  refreshHud(); refreshShop(); refreshPrestige(); refreshAchDot();
   requestAnimationFrame(frame);
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) save(); });
